@@ -1,0 +1,5 @@
+*.pyc
+.idea/
+build/
+hypervisor_api.egg-info/
+dist/

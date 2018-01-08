@@ -17,7 +17,7 @@ class VMTemplate(object):
     description: str
     vnc_enabled: bool
 
-    def __init__(self, backend_template_id: str, description="", vnc_enabled=False):
+    def __init__(self, backend_template_id: str, description: str = "", vnc_enabled: bool = False):
         self.backend_template_id = backend_template_id
         self.description = description
         self.vnc_enabled = vnc_enabled
@@ -34,7 +34,7 @@ class VM(object):
     template: VMTemplate
     vnc_password: Optional[str]
 
-    def __init__(self, backend_id: str, template: VMTemplate, vnc_password=None):
+    def __init__(self, backend_id: str, template: VMTemplate, vnc_password: Optional[str] = None):
         self.backend_id = backend_id
         self.template = template
         self.vnc_password = vnc_password

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from typing import Optional
 import logging
 import pypureomapi
 
@@ -13,8 +14,8 @@ class OMAPIResolver(IPResolver):
     def __init__(
             self,
             host: str,
-            key: str,
-            secret: str,
+            key: Optional[bytes] = None,
+            secret: Optional[bytes] = None,
             port: int = 7911):
         self.logger = logging.getLogger(__name__)
         self.omapi = pypureomapi.Omapi(host, port, key, secret)

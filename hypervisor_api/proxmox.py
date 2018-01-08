@@ -33,6 +33,9 @@ class ProxmoxManager(VMManager):
         self.password = password
         self.sess = BaseUrlSession(self.api_url + '/api2/json/')
         self.sess.verify = verify_cert
+        if not self.sess.verify:
+            requests.packages.urllib3.disable_warnings()
+
         self.shared_disk = shared_disk
         self.create_pool = create_pool
         self.ip_resolver = ip_resolver
@@ -61,7 +64,7 @@ class ProxmoxManager(VMManager):
         if not self.sess.cookies or self.sess.get('version').status_code != 200:
             self._login()
 
-    def _get_vm_by_id(self, vm_id: int) -> VM:
+    def _get_vm_by_id(self, vm_id: int) -> Optional[dict]:
         resources = self.sess.get('cluster/resources?type=vm').json()['data']
         vms = [r for r in resources if r.get('vmid') == vm_id]
         if not vms:
@@ -72,7 +75,7 @@ class ProxmoxManager(VMManager):
 
         return vm
 
-    def _choose_node(self, vm: VM) -> str:
+    def _choose_node(self, vm: dict) -> str:
         """
         Given the number of required cores and mem (in bytes), decide which
         node to place a new VM on based on how utilized each one is.
@@ -99,7 +102,7 @@ class ProxmoxManager(VMManager):
         if len(candidates) == 0:
             raise OverloadException("Cluster overloaded! No nodes with enough memory")
 
-        node = min(candidates, key=lambda vm: vm['mem_pct'])['node']
+        node = min(candidates, key=lambda v: v['mem_pct'])['node']
         self.logger.info("Chose '%s' for a new VM with %d cores and %d mem", node, vm['cores'], vm['maxmem'])
         return node
 
@@ -168,7 +171,7 @@ class ProxmoxManager(VMManager):
 
         if not vm['template']:
             self.logger.info("Making VMID %d into a template", vm['vmid'])
-            task_id = self.sess.post(
+            self.sess.post(
                 'nodes/{}/{}/template'.format(vm['node'], vm['id'])
             )
 
@@ -284,7 +287,7 @@ class ProxmoxManager(VMManager):
             data={'command': 'expire_password vnc +{}'.format(expire_secs)}
         )
 
-    def get_vnc_ip_port(self, vm: VM) -> Tuple[str, int]:
+    def get_vnc_ip_port(self, vm: VM) -> Optional[Tuple[str, int]]:
         if not vm.template.vnc_enabled:
             return None
 
@@ -297,7 +300,7 @@ class ProxmoxManager(VMManager):
 
         node_ifaces = self.sess.get('nodes/{}/network'.format(pm_vm['node'])).json()['data']
         ip = [iface['address'] for iface in node_ifaces if iface.get('gateway')][0]
-        return (ip, 5900 + vm_id)
+        return ip, 5900 + vm_id
 
     def stop_vnc(self, vm: VM):
         self._ensure_login()
@@ -309,7 +312,7 @@ class ProxmoxManager(VMManager):
             data={'command': 'change vnc 0'.format(vm_id)}
         )
 
-    def get_ip(self, vm: VM) -> str:
+    def get_ip(self, vm: VM) -> Optional[str]:
         self._ensure_login()
         vm_id = int(vm.backend_id)
         pm_vm = self._get_vm_by_id(vm_id)
